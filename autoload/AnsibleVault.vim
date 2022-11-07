@@ -7,27 +7,6 @@ if exists('g:autoloaded_ansible_vault')
 endif
 let g:autoloaded_ansible_vault = 1
 
-" Check if the password file can be found
-function! s:checkPasswordFile()
-	" if g:ansible_vault_password_file is already defined, it's value have
-	" precedence
-	if !exists('g:ansible_vault_password_file')
-		let g:ansible_vault_password_file = ''
-	endif
-
-	" or we use ANSIBLE_VAULT_PASSWORD_FILE
-	if g:ansible_vault_password_file == ''
-		let pwfile = expand(get(environ(), 'ANSIBLE_VAULT_PASSWORD_FILE', '~/.vault_password'))
-		let g:ansible_vault_password_file = pwfile
-	endif
-
-	if !filereadable(g:ansible_vault_password_file)
-		echomsg 'password file ' . g:ansible_vault_password_file . ' cannot be read'
-		return 0
-	endif
-	return 1
-endfunction
-
 " Check if ansible-vault can be found and executed
 function! s:checkAnsibleVault()
 	if !executable('ansible-vault')
@@ -73,8 +52,12 @@ endfunction
 
 " Encrypt the value by calling ansible-vault
 function! s:encrypt(value)
+	if !exists('g:ansible_vault_id')
+		echomsg 'You need to specify g:ansible_vault_id to encrypt!'
+		return 0
+	endif
 	let value = s:unquote(a:value)
-	return system('ansible-vault encrypt_string', value)
+	return system('ansible-vault encrypt_string --encrypt-vault-id=' . g:ansible_vault_id, value)
 endfunction
 
 " Decrypt the value by calling ansible-vault
@@ -88,7 +71,7 @@ function! s:decrypt(value)
 endfunction
 
 function! AnsibleVault#Vault() abort
-	if !s:checkPasswordFile() || !s:checkAnsibleVault()
+	if !s:checkAnsibleVault()
 		return
 	endif
 	let [pos, line, value] = s:getValue()
@@ -112,7 +95,7 @@ function! AnsibleVault#Vault() abort
 endfunction
 
 function! AnsibleVault#Unvault() abort
-	if !s:checkPasswordFile() || !s:checkAnsibleVault()
+	if !s:checkAnsibleVault()
 		return
 	endif
 	let [pos, line, value] = s:getValue()
